@@ -16,6 +16,12 @@ interface CourseFilters {
 
 export const getCourseByIdService = async (id:number) => {
     try {
+
+      const cachedResults = cacheService.getCachedResults(`course:${id}`);
+      if(cachedResults)
+      {
+        return cachedResults;
+      }
         const course = await prisma.course.findUnique({
             where:{id},
             include:{
@@ -29,7 +35,9 @@ export const getCourseByIdService = async (id:number) => {
                 }
             }
         });
-    
+        
+        await cacheService.cacheQueryResults(`course:${id}`,course, 86400);
+
         return course;
     } catch (error) {
         console.error({ message: "Error fetching course", error });
@@ -43,14 +51,14 @@ export const getCoursesService = async (filters:CourseFilters) => {
 
       const queryKey = cacheService.generateQueryKey(filters);
 
-      const shouldCache = await cacheService.trackQueryFrequency(queryKey);
+      const cachedResults = cacheService.getCachedResults(queryKey);
 
-      if(shouldCache)
+      if(cachedResults)
       {
-        const cachedResults = await cacheService.getCachedResults(queryKey);
-
-        if(cachedResults) return cachedResults;
+        return cachedResults;
       }
+
+      
         const {
             q,
             country,
@@ -130,6 +138,13 @@ export const getCoursesService = async (filters:CourseFilters) => {
       }),
       prisma.course.count({ where })
     ]);
+
+    const shouldCache = await cacheService.trackQueryFrequency(queryKey);
+
+      if(shouldCache)
+      {
+          await cacheService.cacheQueryResults(queryKey, courses);
+      }
 
     return {
       courses,
