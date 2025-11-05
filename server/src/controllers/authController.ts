@@ -20,7 +20,7 @@ export const signup = async (req:Request, res:Response) => {
 
         return res.status(201).json({
             message: 'User registered successfully',
-            user: { id: result.user.id, email: result.user.email, name: result.user.name },
+            user: { id: result.user.id, email: result.user.email, name: result.user.name, role: result.user.role },
             token: result.token,
         });
         
