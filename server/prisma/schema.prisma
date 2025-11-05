@@ -19,6 +19,7 @@ model User {
   email     String   @unique
   password  String
   name      String
+  role      Role @default(STUDENT)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -43,4 +44,9 @@ model Course {
   eligibility  Json?   // program-specific rules
   university   University @relation(fields: [universityId], references: [id])
   createdAt    DateTime @default(now())
+}
+
+enum Role {
+  STUDENT
+  ADMIN
 }

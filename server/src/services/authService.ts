@@ -19,7 +19,7 @@ export const signupService = async (email:string, password:string, name:string) 
             },
         })
 
-        const token = generateToken(user.id);
+        const token = generateToken(user.id, user.role);
 
         return { user, token };
 
@@ -42,7 +42,7 @@ export const loginService = async (email:string, password:string) => {
         if(!result)
             return null;
 
-        const token = generateToken(user.id);
+        const token = generateToken(user.id , user.role);
 
         return token;
 
