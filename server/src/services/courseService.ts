@@ -1,8 +1,6 @@
-import { success } from "zod";
 import { Course } from "@prisma/client";
 import { prisma } from "../prisma/client"
 import { cacheService } from "./cacheService";
-import { error } from "console";
 
 
 interface CourseFilters {
@@ -233,6 +231,53 @@ export const getCoursesByUniversityService = async (universityId: number, filter
     else if (sort === 'duration') {
       orderBy.duration = 'asc';
     }
+    else if (sort === '-duration') {
+      orderBy.duration = 'desc';
+    }
+    else if (sort === 'title') {
+      orderBy.title = 'asc';
+    }
+    else {
+      orderBy.createdAt = 'desc';
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [courses, total] = await Promise.all([
+      prisma.course.findMany({
+        where,
+        include: {
+          university: {
+            select: {
+              id: true,
+              name: true,
+              country: true,
+              website: true
+            }
+          }
+        },
+        orderBy,
+        skip,
+        take: limit
+      }),
+      prisma.course.count({ where })
+    ]);
+
+    return {
+      courses,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1
+      }
+    };
+  } catch (error) {
+    console.error({ message: 'Error fetching university courses', error });
+    return null;
+  }
 }
 
 export const createCourseService = async(data: {
@@ -285,52 +330,6 @@ export const createCourseService = async(data: {
     return {success: true, data: course};
   } catch (error:any) {
     console.error({message: "Error creating course", error});
-    return {success: false, error: error.message || 'Failed to create course'}
-    else if (sort === '-duration') {
-      orderBy.duration = 'desc';
-    }
-    else if (sort === 'title') {
-      orderBy.title === 'asc';
-    }
-    else {
-      orderBy.createdAt = 'desc';
-    }
-
-    const skip = (page - 1) * limit;
-
-    const [courses, total] = await Promise.all([
-      prisma.course.findMany({
-        where,
-        include: {
-          university: {
-            select: {
-              id: true,
-              name: true,
-              country: true,
-              website: true
-            }
-          }
-        },
-        orderBy,
-        skip,
-        take: limit
-      }),
-      prisma.course.count({ where })
-    ]);
-
-    return {
-      courses,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasNext: page < Math.ceil(total / limit),
-        hasPrev: page > 1
-      }
-    };
-  } catch (error) {
-    console.error({ message: 'Error fetching university courses', error });
-    return null;
+    return {success: false, error: error.message || 'Failed to create course'};
   }
 }
