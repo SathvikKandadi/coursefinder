@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
-import { getCourseByIdService, getCoursesByUniversityService, getCoursesService } from "../services/courseService";
+import { createCourseService, getCourseByIdService, getCoursesByUniversityService, getCoursesService } from "../services/courseService";
+import { CreateCourseInput, createCourseSchema } from "../validators/courseValidator";
+
 
 export const getCourses = async (req:Request, res:Response) => {
     try {
@@ -116,5 +118,40 @@ export const getCoursesByUniversity = async (req: Request, res: Response) => {
 
     } catch (error:any) {
         return res.status(500).json({message: error.message || 'Failed to fetch university courses'});
+    }
+}
+
+
+export const createCourse = async (req: Request, res: Response) => {
+    try {
+        
+        const validateResult = createCourseSchema.safeParse(req.body);
+
+        if(!validateResult.success) {
+            return res.status(400).json({
+                message: 'Validation failed',
+                errors: validateResult.error
+            })
+        }
+
+        const courseData: CreateCourseInput = validateResult.data;
+
+        const result = await createCourseService(courseData);
+
+        if(!result.success) {
+            if(result.error === 'University not found') {
+                return res.status(404).json({message: result.error});
+            }
+            return res.status(500).json({message: result.error});
+        }
+
+        return res.status(201).json({
+            message: 'Course created successfully',
+            data: result.data
+        });
+    } catch (error: any) {
+        return res.status(500).json({
+            message: error.message || 'Failed to create course'
+        });
     }
 }

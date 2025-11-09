@@ -71,7 +71,12 @@ class CacheService {
         return cached ? JSON.parse(cached) : null;
     }
 
-    
+    invalidateCache(pattern: string) {
+        // Implementation depends on your cache solution
+        // This is a placeholder - implement based on your cache library
+        // For example, if using Redis, you'd delete keys matching the pattern
+        console.log(`Invalidating cache for pattern: ${pattern}`);
+      }
   
 }
 

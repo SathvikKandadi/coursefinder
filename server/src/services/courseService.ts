@@ -1,5 +1,7 @@
+import { success } from "zod";
 import { prisma } from "../prisma/client"
 import { cacheService } from "./cacheService";
+import { error } from "console";
 
 
 interface CourseFilters {
@@ -261,4 +263,58 @@ export const getCoursesByUniversityService = async(universityId:number, filters:
         console.error({message: 'Error fetching university courses', error});
         return null;
     }
+}
+
+export const createCourseService = async(data: {
+  title: string;
+  description: string;
+  universityId: number;
+  degree: string;
+  duration: number;
+  fees: number;
+  country: string;
+  eligibility?: any;
+})  => {
+  try {
+    
+    const university = await prisma.university.findUnique({
+      where: {id: data.universityId}
+    })
+
+    if(!university)
+    {
+      return {success:false, error: 'University not found'};
+    }
+
+    const course = await prisma.course.create({
+      data:{
+        title: data.title,
+        description: data.description,
+        universityId: data.universityId,
+        degree: data.degree,
+        duration: data.duration,
+        fees: data.fees,
+        country: data.country,
+        eligibility: data.eligibility || null
+      },
+      include: {
+        university: {
+          select:{
+            id:true,
+            name:true,
+            country:true,
+            website: true
+          }
+        }
+      }
+    })
+
+    // Invalide Cache
+    //cacheService.invalidateCache('course');
+    
+    return {success: true, data: course};
+  } catch (error:any) {
+    console.error({message: "Error creating course", error});
+    return {success: false, error: error.message || 'Failed to create course'}
+  }
 }

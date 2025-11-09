@@ -39,6 +39,7 @@ export const requireRole = (...allowedRoles: string[]) => {
         current: req.userRole
       })
     }
+    next();
   }
 }
 
