@@ -33,36 +33,44 @@ class CacheService {
     private timeWindow: number;
 
     constructor(threshold = 3, timeWindow = 3600) {
-        this.redis=redis;
+        this.redis = redis;
         this.threshold = threshold;
         this.timeWindow = timeWindow;
     }
 
     static getInstance(): CacheService {
-        if(!CacheService.instance)
-        {
+        if (!CacheService.instance) {
             CacheService.instance = new CacheService();
         }
         return CacheService.instance;
     }
 
     generateQueryKey(filters: CourseFilters): string {
-        const { q, country, degree, feesMin, feesMax, duration, page, limit, sort } = filters;
-        return `query:${q}:${country}:${degree}:${feesMin}:${feesMax}:${duration}:${page}:${limit}:${sort}`;
+        const { q, country, degree, feesMin, feesMax, duration, sort } = filters;
+        return `query:${q}:${country}:${degree}:${feesMin}:${feesMax}:${duration}:${sort}`;
+    }
+
+    async cacheCourseIds(queryKey: string, ids: number[], ttl: number = 3600): Promise<void> {
+        await this.redis.setex(`ids:${queryKey}`, ttl, JSON.stringify(ids));
+    }
+
+    async getCachedCourseIds(key: string): Promise<number[] | null> {
+        const cached = await this.redis.get(`ids:${key}`);
+        return cached ? JSON.parse(cached) : null;
     }
 
     async trackQueryFrequency(queryKey: string): Promise<boolean> {
         const freqKey = `freq:${queryKey}`;
         const count = await this.redis.incr(freqKey);
-        
+
         if (count === 1) {
             await this.redis.expire(freqKey, this.timeWindow);
         }
-        
+
         return count >= this.threshold;
     }
 
-    async cacheQueryResults(queryKey:string, results:any, ttl:number = 3600): Promise<void> {
+    async cacheQueryResults(queryKey: string, results: any, ttl: number = 3600): Promise<void> {
         await this.redis.setex(`results:${queryKey}`, ttl, JSON.stringify(results));
     }
 
@@ -78,6 +86,8 @@ class CacheService {
         console.log(`Invalidating cache for pattern: ${pattern}`);
       }
   
+
+
 }
 
 export const cacheService = new CacheService();
