@@ -7,10 +7,10 @@ export interface JwtPayload {
   role: string;
 }
 
-export const generateToken = (userId: number , role: string): string => {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' }); // valid for 7 days
-};
 
+export const generateToken = (userId: number, role: string): string => {
+  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: '7d' });
+};
 
 export const verifyToken = (token: string): JwtPayload => {
     return jwt.verify(token,JWT_SECRET) as JwtPayload;
