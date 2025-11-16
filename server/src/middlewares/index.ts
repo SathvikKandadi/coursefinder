@@ -4,8 +4,10 @@ import { JwtPayload, verifyToken } from "../utils/jwt";
 declare global {
   namespace Express {
     interface Request {
-      userId?: number;
-      userRole?: string;
+      user?: {
+        id: number;
+        role: string;
+      };
     }
   }
 }
@@ -16,8 +18,10 @@ export const authMiddleware = (req:Request, res:Response, next:NextFunction) => 
 
   try {
     const decoded = verifyToken(token) as JwtPayload;
-    req.userId = decoded.userId;
-    req.userRole = decoded.role;
+    req.user = {
+      id: decoded.userId,
+      role: decoded.role
+    };
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Invalid or expired token' });
@@ -28,15 +32,15 @@ export const authMiddleware = (req:Request, res:Response, next:NextFunction) => 
 export const requireRole = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
 
-    if(!req.userId || !req.userRole){
+    if(!req.user?.id || !req.user?.role){
       return res.status(401).json({message: 'Unauthorized - Authentication required'});
     }
 
-    if(!allowedRoles.includes(req.userRole)) {
+    if(!allowedRoles.includes(req.user?.role)) {
       return res.status(403).json({
         message: 'Forbidden - Insufficient permissions',
         required: allowedRoles,
-        current: req.userRole
+        current: req.user?.role
       })
     }
     next();

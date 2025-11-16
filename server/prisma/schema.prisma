@@ -43,7 +43,71 @@ model Course {
   country      String
   eligibility  Json?   // program-specific rules
   university   University @relation(fields: [universityId], references: [id])
+  applications ApplicationItem[]
   createdAt    DateTime @default(now())
+}
+
+model Application {
+  id              Int                 @id @default(autoincrement())
+  userId          Int
+  status          ApplicationStatus   @default(PENDING)
+  submittedAt     DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  jobId           String?             // BullMQ job ID
+  items           ApplicationItem[]
+  statusHistory   ApplicationStatusHistory[]
+  
+  @@index([userId])
+  @@index([status])
+}
+
+model ApplicationItem {
+  id              Int                      @id @default(autoincrement())
+  applicationId   Int
+  courseId        Int
+  status          ApplicationItemStatus    @default(PENDING)
+  submittedAt     DateTime?
+  externalId      String?                  // ID from external university API
+  rejectionReason String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  
+  application     Application              @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  course          Course                   @relation(fields: [courseId], references: [id])
+  
+  @@index([applicationId])
+  @@index([courseId])
+  @@index([status])
+}
+
+model ApplicationStatusHistory {
+  id              Int               @id @default(autoincrement())
+  applicationId   Int
+  fromStatus      ApplicationStatus?
+  toStatus        ApplicationStatus
+  message         String?
+  createdAt       DateTime          @default(now())
+  
+  application     Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  @@index([applicationId])
+}
+
+enum ApplicationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIALLY_COMPLETED
+}
+
+enum ApplicationItemStatus {
+  PENDING
+  PROCESSING
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  FAILED
 }
 
 enum Role {
