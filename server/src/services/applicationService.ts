@@ -1,6 +1,8 @@
 import { prisma } from "../prisma/client";
 import { applicationQueue } from "../config/queue";
 import { ApplicationStatus, ApplicationItemStatus } from "@prisma/client";
+import { applicationSubmissions, dbQueryCounter, dbQueryDuration } from "./metricsService";
+import { trackQuery } from "../utils/dbMetrics";
 
 
 interface CreateApplicationInput {
@@ -11,14 +13,14 @@ interface CreateApplicationInput {
 export const createApplicationService = async (data: CreateApplicationInput) => {
     try {
 
-        const courses = await prisma.course.findMany({
+        const courses = await trackQuery('findMany', 'course', () => prisma.course.findMany({
             where: {
                 id: { in: data.courseIds }
             },
             include: {
                 university: true
             }
-        })
+        })) 
 
         if (courses.length !== data.courseIds.length) {
             return {
@@ -27,7 +29,7 @@ export const createApplicationService = async (data: CreateApplicationInput) => 
             }
         }
 
-        const application = await prisma.application.create({
+        const application = await trackQuery('create', 'application' ,() => prisma.application.create({
             data: {
                 userId: data.userId,
                 status: ApplicationStatus.PENDING,
@@ -55,7 +57,7 @@ export const createApplicationService = async (data: CreateApplicationInput) => 
                     }
                 }
             }
-        });
+        }));
 
         const job = await applicationQueue.add(
             'process-application',
@@ -69,10 +71,13 @@ export const createApplicationService = async (data: CreateApplicationInput) => 
             }
         )
 
-        await prisma.application.update({
+        await trackQuery('update', 'application', () => prisma.application.update({
             where: { id: application.id },
             data: { jobId: job.id }
-        });
+        }));
+
+        // ADD APPLICATION SUBMISSION METRIC
+        applicationSubmissions.inc({ status: 'PENDING' });
 
         return {
             success: true,
@@ -97,7 +102,7 @@ export const getApplicationByIdService = async (id: number, userId?: number) => 
             where.userId = userId;
         }
 
-        const application = await prisma.application.findUnique({
+        const application = await trackQuery('findUnique', 'application', ()=> prisma.application.findUnique({
             where,
             include: {
                 items: {
@@ -122,7 +127,7 @@ export const getApplicationByIdService = async (id: number, userId?: number) => 
                     }
                 }
             }
-        });
+        }));
         return application;
     } catch (error: any) {
         console.error({ message: "Error fetching application", error });
@@ -137,7 +142,8 @@ export const getApplicationStatusesService = async (id: number, userId?: number)
             where.userId = userId;
         }
 
-        const application = await prisma.application.findUnique({
+
+        const application = await trackQuery('findUnique', 'application', ()=> prisma.application.findUnique({
             where,
             include: {
                 statusHistory: {
@@ -146,8 +152,8 @@ export const getApplicationStatusesService = async (id: number, userId?: number)
                     }
                 }
             }
-        });
-
+        }));
+ 
         if (!application) {
             return null;
         }
@@ -168,8 +174,11 @@ export const getUserApplicationsService = async (userId: number, page: number = 
     try {
 
         const skip = (page - 1) * limit;
+        
+        const start = Date.now();
 
         const [applications, total] = await Promise.all([
+            trackQuery('findMany', 'application', () => 
             prisma.application.findMany({
                 where: { userId },
                 include: {
@@ -194,8 +203,8 @@ export const getUserApplicationsService = async (userId: number, page: number = 
                 },
                 skip,
                 take: limit
-            }),
-            prisma.application.count({ where: { userId } })
+            })),
+            trackQuery('count', 'application', () => prisma.application.count({ where: { userId } }))
         ]);
 
         return {
@@ -217,15 +226,15 @@ export const getUserApplicationsService = async (userId: number, page: number = 
 
 export const updateApplicationStatusService = async (applicationId: number, newStatus: ApplicationStatus, message?: string
 ) => {
-    const application = await prisma.application.findUnique({
+    const application = await trackQuery('findUnique','application', ()=> prisma.application.findUnique({
         where: { id: applicationId }
-    });
+    }));
 
     if (!application) {
         return null;
     }
 
-    return await prisma.application.update({
+    const result =  await trackQuery('update', 'application', () => prisma.application.update({
         where: { id: applicationId },
         data: {
             status: newStatus,
@@ -237,11 +246,17 @@ export const updateApplicationStatusService = async (applicationId: number, newS
                 }
             }
         }
-    });
+    }));
+
+    applicationSubmissions.inc({status: newStatus});
+
+    return result;
 };
 
 export const updateApplicationItemStatusService = async (itemId: number, status: ApplicationItemStatus, externalId?: string, rejectionReason?: string) => {
-    return await prisma.applicationItem.update({
+
+
+    const result =  await trackQuery('update', 'application', () => prisma.applicationItem.update({
         where: { id: itemId },
         data: {
             status,
@@ -249,5 +264,7 @@ export const updateApplicationItemStatusService = async (itemId: number, status:
             rejectionReason,
             submittedAt: status === ApplicationItemStatus.SUBMITTED ? new Date() : undefined
         }
-    });
+    }));
+    
+    return result;
 };

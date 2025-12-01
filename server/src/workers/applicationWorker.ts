@@ -4,6 +4,8 @@ import { ApplicationItemStatus, ApplicationStatus } from "@prisma/client";
 import { prisma } from "../prisma/client";
 import { submitToUniversityAPI } from "../services/externalApiService";
 import { redis } from "../config/queue";
+import { bullmqJobCounter } from "../services/metricsService";
+import { trackQuery } from "../utils/dbMetrics";
 
 interface ApplicationJobData {
     applicationId: number;
@@ -18,6 +20,8 @@ export const applicationWorker = new Worker<ApplicationJobData>('application-sub
     const {applicationId, courseIds} = job.data;
     console.log(`Processing application ${applicationId} with ${courseIds.length} courses`);
 
+    bullmqJobCounter.inc({queue:'application-submissions', status: 'active'})
+
     // Update application status to PROCESSING
     await updateApplicationStatusService(
         applicationId,
@@ -26,7 +30,7 @@ export const applicationWorker = new Worker<ApplicationJobData>('application-sub
     );
 
     // Get application items
-    const items = await prisma.applicationItem.findMany({
+    const items = await trackQuery('findMany', 'applicationItem', () => prisma.applicationItem.findMany({
         where: {applicationId},
         include: {
             course: {
@@ -35,7 +39,7 @@ export const applicationWorker = new Worker<ApplicationJobData>('application-sub
                 }
             }
         }
-    })
+    }))
 
     const results = {
         total: items.length,

@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s # How often to scrape targets
+  evaluation_interval: 15s # How often to evaluate rules
+
+scrape_configs:
+  - job_name: 'coursefinder-api'
+    static_configs:
+      - targets: ['course-finder-container:3000'] # Your app container
+    metrics_path: '/api/metrics' # The endpoint we'll create 

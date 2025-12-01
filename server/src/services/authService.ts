@@ -1,11 +1,12 @@
 import { prisma } from "../prisma/client"
+import { trackQuery } from "../utils/dbMetrics";
 import { hashPassword, verifyPassword } from "../utils/hashPassword";
 import { generateToken } from "../utils/jwt";
 
 
 export const signupService = async (email:string, password:string, name:string) => {
     try {
-        const existingUser = await prisma.user.findUnique({where:{email}});
+        const existingUser = await  trackQuery('findUnique', 'user', () => prisma.user.findUnique({where:{email}}));
         if(existingUser)
             return null;
 
@@ -31,7 +32,7 @@ export const signupService = async (email:string, password:string, name:string) 
 
 export const loginService = async (email:string, password:string) => {
     try {
-        const user = await prisma.user.findUnique({where:{email}});
+        const user = await trackQuery('findUnique','user',() => prisma.user.findUnique({where:{email}}));
         if(!user)
             return null;
 

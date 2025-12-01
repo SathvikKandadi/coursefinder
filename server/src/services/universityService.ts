@@ -1,7 +1,6 @@
-import { success } from "zod";
 import { prisma } from "../prisma/client";
-import { error } from "console";
-import { da } from "zod/v4/locales";
+import { trackQuery } from "../utils/dbMetrics";
+
 
 export const createUniversityService = async (data: {
     name: string;
@@ -10,12 +9,12 @@ export const createUniversityService = async (data: {
 }) => {
     try {
         
-        const existingUniversity = await prisma.university.findFirst({
+        const existingUniversity = await trackQuery('findFirst', 'university', () => prisma.university.findFirst({
             where: {
                 name: {equals: data.name, mode: 'insensitive'},
                 country: {equals: data.country, mode: 'insensitive'}
             }
-        });
+        }));
 
         if(existingUniversity) {
             return {
@@ -24,13 +23,13 @@ export const createUniversityService = async (data: {
             };
         }
 
-        const university = await prisma.university.create({
+        const university = await trackQuery('create', 'university', () => prisma.university.create({
             data:{
                 name:data.name,
                 country:data.country,
                 website: data.website || null
             }
-        })
+        }))
 
         // Invalidate cache for university
 
