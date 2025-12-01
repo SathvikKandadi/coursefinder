@@ -4,6 +4,7 @@ import authRouter from "./authRouter";
 import courseRouter from "./courseRouter";
 import universityRouter from "./universityRouter";
 import applicationRouter from "./applicationRouter";
+import metricsRouter from "./metricsRouter";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use("/auth" , authRouter);
 router.use("/courses",courseRouter);
 router.use("/universities",universityRouter);
 router.use("/applications",applicationRouter);
+router.use("/metrics", metricsRouter);
 
 export default router;

@@ -2,6 +2,7 @@ import express from "express";
 import router from "./routes";
 import { applicationWorker, closeWorker } from "./workers/applicationWorker";
 import { closeQueue } from "./config/queue";
+import { metricsMiddleware } from "./middlewares/metricsMiddleware";
 
 
 
@@ -10,6 +11,8 @@ import { closeQueue } from "./config/queue";
 const app = express();
 
 app.use(express.json());
+
+app.use(metricsMiddleware);
 
 app.use("/api",router);
 

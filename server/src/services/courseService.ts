@@ -1,6 +1,7 @@
 import { Course } from "@prisma/client";
 import { prisma } from "../prisma/client"
 import { cacheService } from "./cacheService";
+import { trackQuery } from "../utils/dbMetrics";
 
 
 interface CourseFilters {
@@ -22,7 +23,7 @@ export const getCourseByIdService = async (id: number) => {
     if (cachedResults) {
       return cachedResults;
     }
-    const course = await prisma.course.findUnique({
+    const course = await trackQuery('findUnique', 'course', () => prisma.course.findUnique({
       where: { id },
       include: {
         university: {
@@ -34,7 +35,7 @@ export const getCourseByIdService = async (id: number) => {
           }
         }
       }
-    });
+    }));
 
     await cacheService.cacheQueryResults(`course:${id}`, course, 86400);
 
@@ -137,7 +138,7 @@ export const getCoursesService = async (filters: CourseFilters) => {
 
     // Get courses with count
     const [courses, total] = await Promise.all([
-      prisma.course.findMany({
+      trackQuery('findMany', 'course', () => prisma.course.findMany({
         where,
         include: {
           university: {
@@ -152,8 +153,8 @@ export const getCoursesService = async (filters: CourseFilters) => {
         orderBy,
         skip,
         take: limit
-      }),
-      prisma.course.count({ where })
+      })),
+      trackQuery('count', 'course', () => prisma.course.count({ where }))
     ]);
 
     const courseIds = courses.map(c => c.id);
@@ -244,7 +245,7 @@ export const getCoursesByUniversityService = async (universityId: number, filter
     const skip = (page - 1) * limit;
 
     const [courses, total] = await Promise.all([
-      prisma.course.findMany({
+      trackQuery('findMany', 'course', () => prisma.course.findMany({
         where,
         include: {
           university: {
@@ -259,8 +260,8 @@ export const getCoursesByUniversityService = async (universityId: number, filter
         orderBy,
         skip,
         take: limit
-      }),
-      prisma.course.count({ where })
+      })),
+      trackQuery('count', 'course', () => prisma.course.count({ where }))
     ]);
 
     return {
@@ -292,16 +293,16 @@ export const createCourseService = async(data: {
 })  => {
   try {
     
-    const university = await prisma.university.findUnique({
+    const university = await trackQuery('findUnique', 'university', () => prisma.university.findUnique({
       where: {id: data.universityId}
-    })
+    }))
 
     if(!university)
     {
       return {success:false, error: 'University not found'};
     }
 
-    const course = await prisma.course.create({
+    const course = await trackQuery('create', 'course', () => prisma.course.create({
       data:{
         title: data.title,
         description: data.description,
@@ -322,7 +323,7 @@ export const createCourseService = async(data: {
           }
         }
       }
-    })
+    }))
 
     // Invalide Cache
     //cacheService.invalidateCache('course');

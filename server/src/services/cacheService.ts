@@ -1,4 +1,5 @@
 import Redis from "ioredis";
+import { redisOperations } from "./metricsService";
 
 
 interface CourseFilters {
@@ -52,19 +53,23 @@ class CacheService {
 
     async cacheCourseIds(queryKey: string, ids: number[], ttl: number = 3600): Promise<void> {
         await this.redis.setex(`ids:${queryKey}`, ttl, JSON.stringify(ids));
+        redisOperations.inc({ operation: 'setex' });
     }
 
     async getCachedCourseIds(key: string): Promise<number[] | null> {
         const cached = await this.redis.get(`ids:${key}`);
+        redisOperations.inc({ operation: 'get' });
         return cached ? JSON.parse(cached) : null;
     }
 
     async trackQueryFrequency(queryKey: string): Promise<boolean> {
         const freqKey = `freq:${queryKey}`;
         const count = await this.redis.incr(freqKey);
+        redisOperations.inc({ operation: 'incr' });
 
         if (count === 1) {
             await this.redis.expire(freqKey, this.timeWindow);
+            redisOperations.inc({ operation: 'expire' });
         }
 
         return count >= this.threshold;
@@ -72,19 +77,19 @@ class CacheService {
 
     async cacheQueryResults(queryKey: string, results: any, ttl: number = 3600): Promise<void> {
         await this.redis.setex(`results:${queryKey}`, ttl, JSON.stringify(results));
+        redisOperations.inc({ operation: 'setex' });
     }
 
     async getCachedResults(queryKey: string): Promise<any | null> {
         const cached = await this.redis.get(`results:${queryKey}`);
+        redisOperations.inc({ operation: 'get' });
         return cached ? JSON.parse(cached) : null;
     }
 
     invalidateCache(pattern: string) {
-        // Implementation depends on your cache solution
-        // This is a placeholder - implement based on your cache library
-        // For example, if using Redis, you'd delete keys matching the pattern
         console.log(`Invalidating cache for pattern: ${pattern}`);
-      }
+        redisOperations.inc({ operation: 'invalidate' });
+    }
   
 
 
